@@ -1,0 +1,12 @@
+[package]
+name = "sdhk-rs"
+version = "0.1.0"
+authors = ["Yurii Musiichuk <yurii.musiichuk@gmail.com>"]
+
+[dependencies]
+cgmath = "*"
+gl = "*"
+glfw = "*"
+image = "*"
+rand = "*"
+noise = "*"
