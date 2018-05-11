@@ -35,6 +35,7 @@ impl PlanetTile {
     }
 }
 
+#[allow(dead_code)]
 impl GridTile {
     pub fn new(id: usize, edge_count: u8) -> GridTile {
         GridTile {

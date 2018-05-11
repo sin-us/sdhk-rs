@@ -51,7 +51,7 @@ pub struct Camera {
     projection: Matrix4<f32>,
     view: Matrix4<f32>,
     model: Matrix4<f32>,
-    MVP: Matrix4<f32>,
+    mvp: Matrix4<f32>,
 }
 
 impl Camera {
@@ -90,7 +90,7 @@ impl Camera {
             projection: Matrix4::zero(),
             view: Matrix4::zero(),
             model: Matrix4::zero(),
-            MVP: Matrix4::zero(),
+            mvp: Matrix4::zero(),
         }
     }
 
@@ -127,7 +127,7 @@ impl Camera {
                 //compute the MVP
                 self.view = Matrix4::look_at(Point3::from_vec(self.camera_position), Point3::from_vec(self.camera_look_at), self.camera_up);
                 self.model = Matrix4::from_value(1.0);
-                self.MVP = self.projection * self.view * self.model;
+                self.mvp = self.projection * self.view * self.model;
             },
             CameraType::Orbit { step: _ } => {
                 self.camera_forward = (self.camera_look_at - self.camera_position).normalize();
@@ -150,7 +150,7 @@ impl Camera {
                 //compute the MVP
                 self.view = Matrix4::look_at(Point3::from_vec(self.camera_position), Point3::from_vec(self.camera_look_at), self.camera_up);
                 self.model = Matrix4::from_value(1.0);
-                self.MVP = self.projection * self.view * self.model;
+                self.mvp = self.projection * self.view * self.model;
             }
         }
         
