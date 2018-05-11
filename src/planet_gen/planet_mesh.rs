@@ -13,9 +13,9 @@ use self::cgmath::{Vector2, Vector3, InnerSpace};
 use planet_gen::grid::Grid;
 use planet_gen::corner::CornerPos;
 
-use mesh::Vertex;
+use vertex::Vertex;
 
-
+#[allow(dead_code)]
 pub struct PlanetVertex {
     pos: Vector3<f32>,
     normal: Vector3<f32>,
@@ -23,6 +23,7 @@ pub struct PlanetVertex {
     tex: Vector2<f32>,
     pub height: f32
 }
+
 
 impl PlanetVertex {
     pub fn new(pos: Vector3<f32>, normal: Vector3<f32>, color: Vector3<f32>, tex: Vector2<f32>) -> PlanetVertex {
@@ -39,11 +40,11 @@ impl PlanetVertex {
 impl Vertex for PlanetVertex {
     fn bind_attributes() {
         let mut offset = 0;
-        PlanetVertex::bind_vec3_attribute(0, &mut offset); // pos
-        PlanetVertex::bind_vec3_attribute(1, &mut offset); // normal
-        PlanetVertex::bind_vec3_attribute(2, &mut offset); // color
-        PlanetVertex::bind_vec2_attribute(3, &mut offset); // tex
-        PlanetVertex::bind_f32_attribute(4, &mut offset); // height
+        PlanetVertex::bind_attribute::<Vector3<f32>>(0, &mut offset); // pos
+        PlanetVertex::bind_attribute::<Vector3<f32>>(1, &mut offset); // normal
+        PlanetVertex::bind_attribute::<Vector3<f32>>(2, &mut offset); // color
+        PlanetVertex::bind_attribute::<Vector2<f32>>(3, &mut offset); // tex
+        PlanetVertex::bind_attribute::<f32>(4, &mut offset); // height
     }
 }
 
@@ -53,28 +54,29 @@ pub struct PlanetMesh<'a> {
     sea_level: f32,
 }
 
+#[allow(dead_code)]
 impl<'a> PlanetMesh<'a> {
-    const tileset_width: f32 = 1000.0;
-    const tileset_height: f32 = 100.0;
+    const TILESET_WIDTH: f32 = 1000.0;
+    const TILESET_HEIGHT: f32 = 100.0;
 
-    const tileset_tiles_per_row: f32 = 10.0;
-    const tileset_tiles_per_column: f32 = 1.0;
+    const TILESET_TILES_PER_ROW: f32 = 10.0;
+    const TILESET_TILES_PER_COLUMN: f32 = 1.0;
 
-    const tileset_tile_width: f32 = PlanetMesh::tileset_width / PlanetMesh::tileset_tiles_per_row;
-    const tileset_tile_height: f32 = PlanetMesh::tileset_height / PlanetMesh::tileset_tiles_per_column;
+    const TILESET_TILE_WIDTH: f32 = PlanetMesh::TILESET_WIDTH / PlanetMesh::TILESET_TILES_PER_ROW;
+    const TILESET_TILE_HEIGHT: f32 = PlanetMesh::TILESET_HEIGHT / PlanetMesh::TILESET_TILES_PER_COLUMN;
 
-    const tile_width_normalized: f32 = 1.0; // tileset_tile_width / tileset_width;
-    const tile_height_normalized: f32 = 1.0; //tileset_tile_height / tileset_height;
+    const TILE_WIDTH_NORMALIZED: f32 = PlanetMesh::TILESET_TILE_WIDTH / PlanetMesh::TILESET_WIDTH;
+    const TILE_HEIGHT_NORMALIZED: f32 = PlanetMesh::TILESET_TILE_HEIGHT / PlanetMesh::TILESET_HEIGHT;
 
-    const radius: f32 = 1.0;
+    const RADIUS: f32 = 1.0;
 
-    const tex_coords_hexagon: [[f32;2];6] = [
-            [0.25 * PlanetMesh::tile_width_normalized, 1.0 * PlanetMesh::tile_height_normalized],
-            [0.75 * PlanetMesh::tile_width_normalized, 1.0 * PlanetMesh::tile_height_normalized],
-            [1.0  * PlanetMesh::tile_width_normalized, 0.5 * PlanetMesh::tile_height_normalized],
-            [0.75 * PlanetMesh::tile_width_normalized, 0.0 * PlanetMesh::tile_height_normalized],
-            [0.25 * PlanetMesh::tile_width_normalized, 0.0 * PlanetMesh::tile_height_normalized],
-            [0.0  * PlanetMesh::tile_width_normalized, 0.5 * PlanetMesh::tile_height_normalized],
+    const TEX_COORDS_HEXAGON: [[f32;2];6] = [
+            [0.25 * PlanetMesh::TILE_WIDTH_NORMALIZED, 1.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [0.75 * PlanetMesh::TILE_WIDTH_NORMALIZED, 1.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [1.0  * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.5 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [0.75 * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [0.25 * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [0.0  * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.5 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
         ];
 
     pub fn create(grid: &Grid, shader_program: &'a ShaderProgram<'a>) -> PlanetMesh<'a> {
@@ -82,20 +84,18 @@ impl<'a> PlanetMesh<'a> {
 
         let mut rng = rand::thread_rng();
 
-        let radius = PlanetMesh::radius;
+        let radius = PlanetMesh::RADIUS;
 
         let vertices = {
             println!("tiles count: {}", grid.tiles.len());
 
             for i in 0..grid.tiles.len() {
 
-                let starting_tile_vertice = vertices.len();
-
                 {
                     let t = &grid.tiles[i];
 
                     let is_water: bool = t.height < 400.0;
-                    let tile_x_offset = if is_water { PlanetMesh::tile_width_normalized } else {0.0};
+                    let tile_x_offset = if is_water { PlanetMesh::TILE_WIDTH_NORMALIZED } else {0.0};
 
                     // "0-level" tiles (bottom)
                     for j in 0..t.grid_tile.edge_count as usize - 2 {
@@ -113,15 +113,15 @@ impl<'a> PlanetMesh<'a> {
                         let tex_coord_c: [f32;2];
 
                         if t.grid_tile.edge_count == 6 {
-                            tex_coord_a = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                            tex_coord_b = [PlanetMesh::tex_coords_hexagon[j + 1][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[j + 1][1]];
-                            tex_coord_c = [PlanetMesh::tex_coords_hexagon[j + 2][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[j + 2][1]];
+                            tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                            tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[j + 1][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 1][1]];
+                            tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[j + 2][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 2][1]];
                         }
                         else
                         {
-                            tex_coord_a = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                            tex_coord_b = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                            tex_coord_c = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
+                            tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                            tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                            tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
                         }
 
                         let normal = (a - b).cross(c - b);
@@ -180,15 +180,15 @@ impl<'a> PlanetMesh<'a> {
             let tex_coord_c: [f32;2];
 
             if t.grid_tile.edge_count == 6 {
-                tex_coord_a = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                tex_coord_b = [PlanetMesh::tex_coords_hexagon[j + 1][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[j + 1][1]];
-                tex_coord_c = [PlanetMesh::tex_coords_hexagon[j + 2][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[j + 2][1]];
+                tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[j + 1][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 1][1]];
+                tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[j + 2][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 2][1]];
             }
             else
             {
-                tex_coord_a = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                tex_coord_b = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
-                tex_coord_c = [PlanetMesh::tex_coords_hexagon[0][0] + tile_x_offset, PlanetMesh::tex_coords_hexagon[0][1]];
+                tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
+                tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
             }
 
             let normal = (a - b).cross(c - b);

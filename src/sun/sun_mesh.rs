@@ -1,24 +1,21 @@
 extern crate rand;
 extern crate cgmath;
 
-
 use gfx::camera::Camera;
 use gfx::render_target::RenderTarget;
 use gfx::shader_program::ShaderProgram;
 use gfx::render_target::RenderableMesh;
 use gfx::mesh::Mesh;
+use gfx::vertex::Vertex;
 use self::cgmath::Vector3;
 
 use planet_gen::grid::Grid;
 use planet_gen::corner::CornerPos;
 
-use mesh::Vertex;
-
-
-pub struct SunVertex {
-    pos: Vector3<f32>,
-    color: Vector3<f32>,
-}
+vertex_struct!( SunVertex {
+    pos: [Vector3<f32>, "pos"],
+    color: [Vector3<f32>, "color"],
+} );
 
 impl SunVertex {
     pub fn new(pos: Vector3<f32>, color: Vector3<f32>) -> SunVertex {
@@ -28,16 +25,6 @@ impl SunVertex {
         }
     }
 }
-
-impl Vertex for SunVertex {
-    fn bind_attributes() {
-        let mut offset = 0;
-        SunVertex::bind_vec3_attribute(0, &mut offset); // pos
-        SunVertex::bind_vec3_attribute(1, &mut offset); // color
-        SunVertex::bind_vec2_attribute(2, &mut offset); // tex
-    }
-}
-
 
 pub struct SunMesh<'a> {
     renderable_mesh: RenderableMesh<'a, SunVertex>,

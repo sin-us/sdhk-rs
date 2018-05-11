@@ -1,6 +1,7 @@
 extern crate gl;
 extern crate cgmath;
 
+use gfx::vertex::Vertex;
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::mem::{size_of};
@@ -9,34 +10,6 @@ use cgmath::{ Vector2, Vector3 };
 use texture::Texture;
 use shader_program::ShaderProgram;
 
-pub trait Vertex: Sized {
-    fn bind_attributes();
-
-    fn bind_vec3_attribute(index: u32, offset: &mut usize) {
-        Self::bind_vec_f32_attribute(index, 3, *offset);
-        *offset += size_of::<Vector3<f32>>()
-    }
-
-    fn bind_vec2_attribute(index: u32, offset: &mut usize) {
-        Self::bind_vec_f32_attribute(index, 2, *offset);
-        *offset += size_of::<Vector2<f32>>()
-    }
-
-    fn bind_f32_attribute(index: u32, offset: &mut usize) {
-        unsafe {
-            gl::VertexAttribPointer(index, 1, gl::FLOAT, gl::FALSE, size_of::<Self>() as i32, *offset as *const c_void);
-            gl::EnableVertexAttribArray(index);
-        }
-        *offset += size_of::<f32>()
-    }
-
-    fn bind_vec_f32_attribute(index: u32, size: i32, offset: usize) {
-        unsafe {
-            gl::VertexAttribPointer(index, size, gl::FLOAT, gl::FALSE, size_of::<Self>() as i32, offset as *const c_void);
-            gl::EnableVertexAttribArray(index);
-        }
-    }
-}
 
 pub struct Mesh<V: Vertex> {
     vertices: Vec<V>,

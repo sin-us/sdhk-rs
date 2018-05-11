@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use cgmath::{Matrix4, Vector3};
 use gfx::shader_program::ShaderProgram;
 use gfx::mesh::Mesh;
-use gfx::mesh::Vertex;
+use gfx::vertex::Vertex;
 use gfx::camera::Camera;
 
 

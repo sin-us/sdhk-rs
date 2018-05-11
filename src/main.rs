@@ -5,6 +5,7 @@ extern crate cgmath;
 
 use cgmath::{ Zero, Vector3 };
 
+#[macro_use]
 mod gfx;
 use gfx::*;
 
@@ -21,24 +22,31 @@ const SCR_WIDTH: u32 = 800;
 const SCR_HEIGHT: u32 = 600;
 
 pub fn main() {
-    let mut camera = Camera::create_default();
-    camera.set_viewport(0, 0, 800, 600);
-    camera.set_clipping(0.1, 1000.0);
-    camera.set_position(Vector3::new(2.0, 0.0, 5.0));
+    let shader_program;
+    let mut planet_mesh;
 
     let grid_6 = Grid::create_size_n_grid(6);
     let mut grid = Grid::create_size_n_grid(7);
 
     Landscape::fill_heights(&mut grid);
 
-    let shader_program = ShaderProgram::create_with_geometry("assets/shaders/planet/basic.vert", "assets/shaders/planet/basic.frag", "assets/shaders/planet/basic.geom");
-    let mut planet_mesh = PlanetMesh::create(&grid, &shader_program);
+    shader_program = ShaderProgram::create_with_geometry("assets/shaders/planet/basic.vert", "assets/shaders/planet/basic.frag", "assets/shaders/planet/basic.geom");
+    
 
     let shader_sun = ShaderProgram::create_basic("assets/shaders/sun/sun.vert", "assets/shaders/sun/bright_sun.frag");
     let mut sun_mesh = SunMesh::create(&grid_6, &shader_sun);
 
     let mut game_window = GameWindow::<GameState>::create(SCR_WIDTH, SCR_HEIGHT, "Sdhk-rs", glfw::WindowMode::Windowed);
     let mut game: GameState = GameState::new();
+
+    planet_mesh = PlanetMesh::create(&grid, &shader_program);
+
+    let mut camera = Camera::create_default();
+    camera.set_viewport(0, 0, 800, 600);
+    camera.set_clipping(0.1, 1000.0);
+    camera.set_position(Vector3::new(2.0, 0.0, 5.0));
+
+
     game.camera = camera;
 
     let sun_pos = Vector3::new(10.0, 0.0, -100.0);
