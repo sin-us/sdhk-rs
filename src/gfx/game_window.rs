@@ -55,8 +55,9 @@ impl <G> GameWindow<G> where G: Game {
     pub fn render(&mut self, game: &mut G) {
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
-
             gl::Enable(gl::BLEND);
+            gl::Enable(gl::CULL_FACE);
+
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         }
 

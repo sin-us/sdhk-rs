@@ -9,7 +9,8 @@ use planet_gen::edge::Edge;
 pub struct PlanetTile {
     pub grid_tile: GridTile,
     pub gl_tile: GLTile,
-    pub height: f64
+    pub height: f64,
+    pub has_clouds: bool,
 }
 
 pub struct GridTile {
@@ -30,7 +31,8 @@ impl PlanetTile {
         PlanetTile {
             grid_tile: grid_tile,
             gl_tile: GLTile { vertice_indices: [0; 6] },
-            height: 0.0
+            height: 0.0,
+            has_clouds: false
         }
     }
 }

@@ -1,4 +1,3 @@
-#version 330 core
 in VS_OUT {
     vec4 pos;
     vec3 color;

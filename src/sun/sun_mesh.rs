@@ -4,7 +4,7 @@ extern crate cgmath;
 use gfx::camera::Camera;
 use gfx::render_target::RenderTarget;
 use gfx::shader_program::ShaderProgram;
-use gfx::render_target::RenderableMesh;
+use gfx::shader_target::ShaderTarget;
 use gfx::mesh::Mesh;
 use gfx::vertex::Vertex;
 use self::cgmath::Vector3;
@@ -13,8 +13,8 @@ use planet_gen::grid::Grid;
 use planet_gen::corner::CornerPos;
 
 vertex_struct!( SunVertex {
-    pos: [Vector3<f32>, "pos"],
-    color: [Vector3<f32>, "color"],
+    pos: [Vector3<f32>, "aPos"],
+    color: [Vector3<f32>, "aColor"],
 } );
 
 impl SunVertex {
@@ -27,13 +27,14 @@ impl SunVertex {
 }
 
 pub struct SunMesh<'a> {
-    renderable_mesh: RenderableMesh<'a, SunVertex>,
+    mesh: Mesh<SunVertex>,
+    target: ShaderTarget<'a, SunVertex>,
 }
 
 impl<'a> SunMesh<'a> {
     const RADIUS: f32 = 1.0;
 
-    pub fn create(grid: &Grid, shader_program: &'a ShaderProgram<'a>) -> SunMesh<'a> {
+    pub fn create(grid: &Grid, shader_program: &'a ShaderProgram<'a, SunVertex>) -> SunMesh<'a> {
         let mut vertices: Vec<SunVertex> = Vec::new();
 
         let radius = SunMesh::RADIUS;
@@ -69,28 +70,30 @@ impl<'a> SunMesh<'a> {
         let mesh = Mesh::create(vertices, Vec::new());
 
         SunMesh {
-            renderable_mesh: RenderableMesh::create(mesh, shader_program)
+            mesh: mesh,
+            target: ShaderTarget::create(shader_program)
         }
     }
 
     pub fn get_mesh(&self) -> &Mesh<SunVertex> {
-        self.renderable_mesh.get_mesh()
+        &self.mesh
     }
 }
 
 impl<'a> RenderTarget for SunMesh<'a> {
     fn update(&mut self, camera: &Camera, time: f32) {
-        self.renderable_mesh.update(camera, time);
+        self.target.update(camera);
     }
     fn render(&self) {
-        self.renderable_mesh.render();
+        self.target.render(&self.mesh);
     }
 
     fn compile(&mut self) {
-        self.renderable_mesh.compile();
+        self.mesh.compile();
+        self.target.compile();
     }
 
     fn set_pos(&mut self, pos: Vector3<f32>) {
-        self.renderable_mesh.set_pos(pos);
+        self.target.set_pos(pos);
     }
 }

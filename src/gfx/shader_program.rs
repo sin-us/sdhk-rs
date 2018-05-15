@@ -1,30 +1,21 @@
 extern crate gl;
 
+use gfx::shader_constructor::{ShaderType, ShaderSource};
+use gfx::vertex::Vertex;
+use std::marker::PhantomData;
 use gl::types::GLenum;
 use gl::types::GLchar;
 use std::ffi::{CString, CStr};
 use std::ptr;
-use std::fs::File;
-use std::io::Read;
 
-pub struct ShaderProgram<'a> {
+use gfx::shader_constructor::ShaderConstructor;
+
+pub struct ShaderProgram<'a, V: Vertex> {
     id: u32,
-    shaders: Vec<ShaderSource<'a>>
+    shaders: Vec<ShaderSource<'a, V>>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum ShaderType {
-    Vertex,
-    Fragment,
-    Geometry
-}
-
-struct ShaderSource<'a> {
-    pub file_path: &'a str,
-    pub shader_type: ShaderType
-}
-
-impl<'a> ShaderProgram<'a> {
+impl<'a, V> ShaderProgram<'a, V> where V: Vertex {
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -36,7 +27,8 @@ impl<'a> ShaderProgram<'a> {
             let mut compiled_shaders: Vec<u32> = Vec::with_capacity(self.shaders.len());
 
             for shader in self.shaders.iter() {
-                let compiled_shader = compile_shader(&read_file(shader.file_path), shader.shader_type);
+                let shader_source = ShaderConstructor::create_shader_from::<V>(shader);
+                let compiled_shader = compile_shader(&shader_source, shader.shader_type);
                 compiled_shaders.push(compiled_shader);
                 gl::AttachShader(shader_program, compiled_shader);
             }
@@ -60,37 +52,29 @@ impl<'a> ShaderProgram<'a> {
         }
     }
 
-    pub fn create_basic(vertex_shader_path: &'a str, fragment_shader_path: &'a str) -> ShaderProgram<'a> {
-        let vertex_shader = ShaderSource { file_path: vertex_shader_path, shader_type: ShaderType::Vertex };
-        let fragment_shader = ShaderSource { file_path: fragment_shader_path, shader_type: ShaderType::Fragment };
+    pub fn create_basic(vertex_shader_path: &'a str, fragment_shader_path: &'a str) -> Self {
+        let vertex_shader = ShaderSource::new(vertex_shader_path, ShaderType::Vertex);
+        let fragment_shader = ShaderSource::new(fragment_shader_path, ShaderType::Fragment);
 
         ShaderProgram {
             id: 0,
-            shaders: vec!(vertex_shader, fragment_shader)
+            shaders: vec!(vertex_shader, fragment_shader),
         }
     }
 
-    pub fn create_with_geometry(vertex_shader_path: &'a str, fragment_shader_path: &'a str, geometry_shader_path: &'a str) -> ShaderProgram<'a> {
-        let vertex_shader = ShaderSource { file_path: vertex_shader_path, shader_type: ShaderType::Vertex };
-        let fragment_shader = ShaderSource { file_path: fragment_shader_path, shader_type: ShaderType::Fragment };
-        let geometry_shader = ShaderSource { file_path: geometry_shader_path, shader_type: ShaderType::Geometry };
+    pub fn create_with_geometry(vertex_shader_path: &'a str, fragment_shader_path: &'a str, geometry_shader_path: &'a str) -> Self {
+
+        let vertex_shader = ShaderSource::new(vertex_shader_path, ShaderType::Vertex);
+        let fragment_shader = ShaderSource::new(fragment_shader_path, ShaderType::Fragment);
+        let geometry_shader = ShaderSource::new(geometry_shader_path, ShaderType::Geometry);
 
         ShaderProgram {
             id: 0,
-            shaders: vec!(vertex_shader, fragment_shader, geometry_shader)
+            shaders: vec!(vertex_shader, fragment_shader, geometry_shader),
         }
     }
 }
 
-fn read_file(path: &str) -> String {
-    let mut result = String::new();
-    File::open(path)
-            .expect(&format!("Failed to open {}", path))
-        .read_to_string(&mut result)
-            .expect(&format!("Failed to read shader: {}", path));
-
-    result
-}
 
 fn compile_shader(shader_source: &str, shader_type: ShaderType) -> u32 {
     unsafe {

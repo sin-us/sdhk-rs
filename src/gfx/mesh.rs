@@ -41,23 +41,26 @@ impl<V> Mesh<V>
             gl::GenBuffers(1, &mut vbo);
             gl::GenBuffers(1, &mut ebo);
 
-            gl::BindVertexArray(vao);
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);        
-            gl::BufferData(gl::ARRAY_BUFFER, (self.vertices.len() * size_of::<V>()) as isize, &self.vertices[0] as *const V as *const c_void, gl::STATIC_DRAW);
-
-            V::bind_attributes();
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-            gl::BindVertexArray(0);
-
             self.vbo = vbo;
             self.vao = vao;
             self.ebo = ebo;
+
+            
+            gl::BindVertexArray(self.vao);
+            self.bind_vbo();
+
+            V::bind_attributes();
+
+            gl::BindVertexArray(0);
         };
     }
 
-    pub fn render(&self, shader_program: &ShaderProgram) {
+    pub fn update_vertices(&mut self, vertices: Vec<V>) {
+        self.vertices = vertices;
+        self.bind_vbo();
+    }
+
+    pub fn render(&self, shader_program: &ShaderProgram<V>) {
         unsafe {
             gl::UseProgram(shader_program.id());
             for i in 0..self.textures.len() {
@@ -68,10 +71,17 @@ impl<V> Mesh<V>
                 gl::Uniform1i(uniform_texture, i as i32);
             }
            
-            gl::UseProgram(shader_program.id());
             gl::BindVertexArray(self.vao);
-
             gl::DrawArrays(gl::TRIANGLES, 0, self.vertices.len() as i32);
+            gl::BindVertexArray(0);
         }
+    }
+
+    fn bind_vbo(&self) {
+        unsafe {
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+            gl::BufferData(gl::ARRAY_BUFFER, (self.vertices.len() * size_of::<V>()) as isize, &self.vertices[0] as *const V as *const c_void, gl::STATIC_DRAW);
+        }
+        // V::bind_attributes();
     }
 }

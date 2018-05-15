@@ -1,6 +1,7 @@
 extern crate glfw;
 extern crate cgmath;
 
+use gfx::vertex::Vertex;
 use gfx::render_target::RenderTarget;
 use gfx::camera::{Camera, CameraDirection};
 use gfx::game_window::Game;
@@ -9,7 +10,8 @@ use glfw::{Key, Action, WindowEvent};
 
 pub struct GameState<'a> {
     pub camera: Camera,
-    pub meshes: Vec<&'a mut RenderTarget>,
+    pub meshes: Vec<Box<RenderTarget + 'a>>,
+    space_callback: Box<Fn() + 'a>,
     last_frame: f64,
     delta_time: f64
 }
@@ -19,13 +21,18 @@ impl<'a> GameState<'a> {
         GameState {
             camera: Camera::create_default(),
             meshes: Vec::new(),
+            space_callback: Box::new(|| {}),
             last_frame: 0.0,
             delta_time: 0.0
         }
     }
 
-    pub fn add_mesh(&mut self, mesh: &'a mut RenderTarget) {
+    pub fn add_mesh(&mut self, mesh: Box<RenderTarget + 'a>) {
         self.meshes.push(mesh)
+    }
+
+    pub fn register_callback<CB: 'a + Fn()>(&mut self, callback: CB) {
+        self.space_callback = Box::new(callback);
     }
 }
 
@@ -65,6 +72,7 @@ impl<'a> Game for GameState<'a> {
                     WindowEvent::Key(Key::Right, _, _, _) => self.camera.change_yaw(-1.0),
                     WindowEvent::Key(Key::Up, _, _, _) => self.camera.change_pitch(1.0),
                     WindowEvent::Key(Key::Down, _, _, _) => self.camera.change_pitch(-1.0),
+                    WindowEvent::Key(Key::Space, _, _, _) => (self.space_callback)(),
                     _ => {}
                 }
             },
