@@ -1,15 +1,19 @@
 extern crate rand;
 extern crate cgmath;
 
+use glfw::Key;
+use cgmath::Deg;
 use gfx::camera::Camera;
 use gfx::render_target::RenderTarget;
 use gfx::shader_program::ShaderProgram;
+use gfx::shader_target::Axis;
 use gfx::shader_target::ShaderTarget;
 use gfx::mesh::Mesh;
 use planet_gen::tile::PlanetTile;
-use self::cgmath::{Vector2, Vector3, InnerSpace, Zero};
+use self::cgmath::{Vector2, Vector3, InnerSpace, Zero, Transform};
 
 use planet_gen::grid::Grid;
+use planet_gen::landscape::Landscape;
 use planet_gen::corner::CornerPos;
 
 use vertex::Vertex;
@@ -20,7 +24,11 @@ vertex_struct!(
         normal: [Vector3<f32>, "aNormal"],
         color: [Vector3<f32>, "aColor"],
         tex: [Vector2<f32>, "aTexCoord"],
+
         height: [f32, "aHeight"],
+        brightness: [f32, "aBrightness"],
+        temperature: [f32, "aTemperature"],
+        humidity: [f32, "aHumidity"],
         clouds: [f32, "aClouds"],
     }
 );
@@ -32,6 +40,10 @@ impl PlanetVertex {
             normal: normal,
             color: color,
             tex: Vector2::zero(),
+
+            brightness: 0.0,
+            temperature: 0.0,
+            humidity: 0.0,
             height: 0.0,
             clouds: 0.0,
         }
@@ -39,13 +51,40 @@ impl PlanetVertex {
 }
 
 
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum PlanetOverlay {
+    Basic,
+    Heights,
+    Brightness,
+    Temperature,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum PlanetType {
+    Empty
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum PlanetMaterial {
+    Granite
+}
+
+
+
 pub struct PlanetMesh<'a> {
     grid: Grid,
     mesh: Mesh<PlanetVertex>,
     surface_target: ShaderTarget<'a, PlanetVertex>,
     atmosphere_target: ShaderTarget<'a, PlanetVertex>,
+
+    sun_pos: Vector3<f32>,
+    rotation: Deg<f32>,
+
     sea_level: f32,
+
     last_frame: f32,
+    planet_type: PlanetType,
+    overlay: PlanetOverlay,
 }
 
 #[allow(dead_code)]
@@ -74,12 +113,14 @@ impl<'a> PlanetMesh<'a> {
         ];
 
     pub fn recalc_vertices(&mut self) {
-        println!("Surface Vertices recalculated");
         let vertices = Self::create_surface_vertices(&self.grid);
         self.mesh.update_vertices(vertices);
     }
 
-    pub fn create(grid: Grid, surface_shader: &'a ShaderProgram<'a, PlanetVertex>, atmosphere_shader: &'a ShaderProgram<'a, PlanetVertex>) -> Self {
+    pub fn create(grid: Grid,
+                  sun_pos: Vector3<f32>,
+                  surface_shader: &'a ShaderProgram<'a, PlanetVertex>,
+                  atmosphere_shader: &'a ShaderProgram<'a, PlanetVertex>) -> Self {
         let surface_vertices = Self::create_surface_vertices(&grid);
         let surface_mesh = Mesh::create(surface_vertices, Vec::new());
 
@@ -88,13 +129,22 @@ impl<'a> PlanetMesh<'a> {
             mesh: surface_mesh,
             surface_target: ShaderTarget::create(surface_shader),
             atmosphere_target: ShaderTarget::create(atmosphere_shader),
+
+            sun_pos: sun_pos,
+            rotation: Deg(0.0),
+
             sea_level: 0.0,
+
             last_frame: 0.0,
+            overlay: PlanetOverlay::Basic,
+            planet_type: PlanetType::Empty,
         }
     }
 
     pub fn create_surface_vertices(grid: &Grid) -> Vec<PlanetVertex> {
         PlanetMesh::create_vertices(grid, PlanetMesh::RADIUS, |v,t| {
+            v.brightness = t.brightness;
+            v.temperature = t.temperature as f32;
             v.height = t.height as f32;
             v.clouds = if t.has_clouds { 1.0 } else { 0.0 };
         })
@@ -105,7 +155,7 @@ impl<'a> PlanetMesh<'a> {
         let mut vertices: Vec<PlanetVertex> = Vec::new();
 
         let vertices = {
-            println!("tiles count: {}", grid.tiles.len());
+            // println!("tiles count: {}", grid.tiles.len());
 
             for i in 0..grid.tiles.len() {
 
@@ -146,6 +196,7 @@ impl<'a> PlanetMesh<'a> {
                         vertices.push(vertex);
 
                         let mut vertex = PlanetVertex::new(b, normal, PlanetMesh::get_color(t));
+
                         vertex_action(&mut vertex, t);
                         vertices.push(vertex);
 
@@ -197,6 +248,11 @@ impl<'a> PlanetMesh<'a> {
         self.surface_target.set_uniform_vec3("light_color", color);
     }
 
+    pub fn set_overlay(&mut self, overlay: PlanetOverlay) {
+        self.overlay = overlay;
+        self.surface_target.set_uniform_i32("overlay", overlay as i32)
+    }
+
     fn get_color(t: &PlanetTile) -> Vector3<f32> {
         let is_water: bool = t.height < 300.0;
 
@@ -206,25 +262,40 @@ impl<'a> PlanetMesh<'a> {
 
 impl<'a> RenderTarget for PlanetMesh<'a> {
     fn update(&mut self, camera: &Camera, time: f32) {
+
+        let degrees_per_tick = 1.0;
+        let seconds_per_tick = (24.0 * 60.0 * 60.0) / (360.0 / degrees_per_tick);
+
+        self.rotation += Deg(degrees_per_tick);
+
+        self.surface_target.set_rotation(Axis::Y, Deg(degrees_per_tick));
+        self.atmosphere_target.set_rotation(Axis::Y, Deg(degrees_per_tick));
+
         self.surface_target.update(camera);
         self.atmosphere_target.update(camera);
 
-        let mut i = 0;
+        Landscape::heat(&mut self.grid, self.surface_target.get_model_matrix(), self.sun_pos, seconds_per_tick as f64);
 
-        for t in &mut self.grid.tiles {
-            t.height = t.height + 0.1;
-            t.has_clouds = t.height < 900.0;
-        }
+        //Landscape::vapor(&mut self.grid, self.surface_target.get_model_matrix(), self.sun_pos);
 
-        if time - self.last_frame > 0.5 {
+        //if time - self.last_frame > 0.5 {
             self.recalc_vertices();
             self.last_frame = time;
+        //}
+    }
+
+    fn process_key_pressed(&mut self, key: Key) {
+        match key {
+            Key::Num1 => { self.set_overlay(PlanetOverlay::Basic); },
+            Key::Num2 => { self.set_overlay(PlanetOverlay::Brightness); },
+            Key::Num3 => { self.set_overlay(PlanetOverlay::Temperature); },
+            _ => {},
         }
     }
 
     fn render(&self) {
         self.surface_target.render(&self.mesh);
-        self.atmosphere_target.render(&self.mesh);
+        //self.atmosphere_target.render(&self.mesh);
     }
 
     fn compile(&mut self) {

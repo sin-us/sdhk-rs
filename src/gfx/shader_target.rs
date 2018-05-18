@@ -1,5 +1,6 @@
 extern crate gl;
 
+use cgmath::Deg;
 use std::collections::HashMap;
 use cgmath::{Matrix4, Vector3};
 
@@ -9,6 +10,12 @@ use gfx::mesh::Mesh;
 use gfx::vertex::Vertex;
 use gfx::camera::Camera;
 
+#[derive(Copy, Clone)]
+pub enum Axis {
+    X,
+    Y,
+    Z
+}
 
 pub struct ShaderTarget<'a, V: 'a + Vertex> {
     uniforms: HashMap<&'a str, Uniform>,
@@ -25,8 +32,21 @@ impl<'a, V> ShaderTarget<'a, V> where V: Vertex {
         }
     }
 
+    pub fn get_model_matrix(&self) -> Matrix4<f32> {
+        self.model_matrix
+    }
+
     pub fn shader_program(&self) -> &ShaderProgram<V> {
         &self.shader_program
+    }
+
+    pub fn set_uniform_i32(&mut self, uniform_name: &'a str, uniform_value: i32) {
+        if let Some(uniform) = self.uniforms.get_mut(uniform_name) {
+            uniform.value = UniformValue::Int(uniform_value);
+            return;
+        }
+        
+        self.uniforms.insert(uniform_name, Uniform::new_i32(uniform_name, uniform_value));
     }
 
     pub fn set_uniform_f32(&mut self, uniform_name: &'a str, uniform_value: f32) {
@@ -81,5 +101,13 @@ impl<'a, V> ShaderTarget<'a, V> where V: Vertex {
 
     pub fn set_pos(&mut self, model_matrix: Vector3<f32>) {
         self.model_matrix = Matrix4::from_translation(model_matrix);
+    }
+
+    pub fn set_rotation(&mut self, axis: Axis, deg: Deg<f32>) {
+        match axis {
+            Axis::X => {},
+            Axis::Y => self.model_matrix = self.model_matrix * Matrix4::from_angle_y(deg),
+            Axis::Z => {},
+        }
     }
 }

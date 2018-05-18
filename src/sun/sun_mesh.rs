@@ -1,6 +1,7 @@
 extern crate rand;
 extern crate cgmath;
 
+use glfw::Key;
 use gfx::camera::Camera;
 use gfx::render_target::RenderTarget;
 use gfx::shader_program::ShaderProgram;
@@ -84,6 +85,11 @@ impl<'a> RenderTarget for SunMesh<'a> {
     fn update(&mut self, camera: &Camera, time: f32) {
         self.target.update(camera);
     }
+
+    fn process_key_pressed(&mut self, key: Key) {
+        
+    }
+    
     fn render(&self) {
         self.target.render(&self.mesh);
     }

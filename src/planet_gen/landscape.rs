@@ -1,19 +1,19 @@
 extern crate cgmath;
 extern crate noise;
 
+use cgmath::{ Vector3, Matrix4, InnerSpace, Transform };
 use std::f64;
 use planet_gen::grid::Grid;
+use planet_gen::tile::PlanetCoreMaterial;
 use self::noise::{Fbm, NoiseFn, Point3, Seedable, MultiFractal};
 
 pub struct Landscape;
 
 impl Landscape {
-    pub fn fill_heights(grid: &mut Grid) {
+    pub fn fill_heights(grid: &mut Grid, max_height: f64, sea_level: f64) {
         let perlin_surface = Fbm::default().set_octaves(7);
 
         let perlin_clouds = Fbm::default().set_seed(9043).set_octaves(4);
-
-        let max_height = 1000.0;
 
         let mut min_noise: f64 = f64::MAX;
         let mut max_noise: f64 = f64::MIN;
@@ -35,6 +35,56 @@ impl Landscape {
             let tile = &mut grid.tiles[i];
 
             tile.height = (tile.height - min_noise) / (max_noise - min_noise) * max_height;
+            tile.has_water = tile.height < sea_level;
+
+            if tile.has_water {
+                tile.core_material = &PlanetCoreMaterial::WATER;
+            }
+        }
+    }
+
+    pub fn heat(grid: &mut Grid, model_matrix: Matrix4<f32>, sun_pos: Vector3<f32>, delta_t: f64) {
+        let mut max_temp: f64 = 0.0;
+        let mut min_temp: f64 = 0.0;
+        for t in &mut grid.tiles {
+            t.brightness = model_matrix.transform_vector(t.grid_tile.pos).dot(sun_pos);
+
+            let stephen_bolzman_const = 5.67036713 * 0.00000001;
+
+            let q_sun = 1000.0; // W ~ J / s
+            let q_absorbed: f64;
+
+            if t.brightness <= 0.0 {
+                q_absorbed = 0.0;
+            } else {
+                q_absorbed = q_sun * t.core_material.emissivity() * t.brightness as f64;
+            }
+
+            let q_emitted = (273.0 + t.temperature).powf(4.0) * t.core_material.emissivity() * stephen_bolzman_const;
+            let delta_q = (q_absorbed - q_emitted) * delta_t; // J
+
+            let delta_temperature = delta_q / (t.core_material.density() * t.core_material.specific_heat());
+
+            t.temperature = t.temperature + delta_temperature;
+
+            max_temp = f64::max(max_temp, t.temperature);
+            min_temp = f64::min(min_temp, t.temperature);
+        }
+
+        println!("Max temp: {:?}    Min Temp: {:?}", max_temp, min_temp);
+    }
+
+    pub fn vapor(grid: &mut Grid, model_matrix: Matrix4<f32>, sun_pos: Vector3<f32>) {
+        for t in &mut grid.tiles {
+
+            if !t.has_water { 
+                continue
+            }
+
+            t.brightness = model_matrix.transform_vector(t.grid_tile.pos).dot(sun_pos);
+            
+            t.height = t.height + 0.1;
+            t.has_clouds = t.height < 900.0;
         }
     }
 }

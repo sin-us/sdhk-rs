@@ -62,17 +62,21 @@ impl<'a> Game for GameState<'a> {
         println!("{:?}", event);
 
         match event {
-            WindowEvent::Key(_, _, Action::Press, _) | WindowEvent::Key(_, _, Action::Repeat, _) => {
-                match event {
-                    WindowEvent::Key(Key::W, _, _, _) => self.camera.move_camera(CameraDirection::Forward), 
-                    WindowEvent::Key(Key::S, _, _, _) => self.camera.move_camera(CameraDirection::Back),
-                    WindowEvent::Key(Key::A, _, _, _) => { self.camera.move_camera(CameraDirection::Left);  },
-                    WindowEvent::Key(Key::D, _, _, _) => self.camera.move_camera(CameraDirection::Right),
-                    WindowEvent::Key(Key::Left, _, _, _) => self.camera.change_yaw(1.0),
-                    WindowEvent::Key(Key::Right, _, _, _) => self.camera.change_yaw(-1.0),
-                    WindowEvent::Key(Key::Up, _, _, _) => self.camera.change_pitch(1.0),
-                    WindowEvent::Key(Key::Down, _, _, _) => self.camera.change_pitch(-1.0),
-                    WindowEvent::Key(Key::Space, _, _, _) => (self.space_callback)(),
+            WindowEvent::Key(key, _, Action::Press, _) | WindowEvent::Key(key, _, Action::Repeat, _) => {
+                for rt in self.meshes.iter_mut() {
+                    rt.process_key_pressed(key);
+                };
+
+                match key {
+                    Key::W => self.camera.move_camera(CameraDirection::Forward), 
+                    Key::S => self.camera.move_camera(CameraDirection::Back),
+                    Key::A => { self.camera.move_camera(CameraDirection::Left);  },
+                    Key::D => self.camera.move_camera(CameraDirection::Right),
+                    Key::Left => self.camera.change_yaw(1.0),
+                    Key::Right => self.camera.change_yaw(-1.0),
+                    Key::Up => self.camera.change_pitch(1.0),
+                    Key::Down => self.camera.change_pitch(-1.0),
+                    Key::Space => (self.space_callback)(),
                     _ => {}
                 }
             },

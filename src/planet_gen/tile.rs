@@ -6,10 +6,48 @@ use self::cgmath::Vector3;
 use planet_gen::corner::Corner;
 use planet_gen::edge::Edge;
 
+pub struct PlanetCoreMaterial {
+    specific_heat: f64, // J / kg
+    density: f64, // kg / m^3
+    emissivity: f64,
+}
+
+impl PlanetCoreMaterial {
+    pub const GRANITE: PlanetCoreMaterial = PlanetCoreMaterial {
+        specific_heat: 280.0,
+        density: 2750.0,
+        emissivity: 0.9,
+    };
+
+    pub const WATER: PlanetCoreMaterial = PlanetCoreMaterial {
+        specific_heat: 4180.0,
+        density: 1000.0,
+        emissivity: 0.92,
+    };
+
+    pub fn specific_heat(&self) -> f64 {
+        self.specific_heat
+    }
+
+    pub fn density(&self) -> f64 {
+        self.density
+    }
+
+    pub fn emissivity(&self) -> f64 {
+        self.emissivity
+    }
+}
+
 pub struct PlanetTile {
     pub grid_tile: GridTile,
     pub gl_tile: GLTile,
+    
+    pub core_material: &'static PlanetCoreMaterial,
     pub height: f64,
+    pub brightness: f32,
+    pub temperature: f64,
+    pub humidity: f64,
+    pub has_water: bool,
     pub has_clouds: bool,
 }
 
@@ -31,8 +69,13 @@ impl PlanetTile {
         PlanetTile {
             grid_tile: grid_tile,
             gl_tile: GLTile { vertice_indices: [0; 6] },
+            core_material: &PlanetCoreMaterial::GRANITE,
             height: 0.0,
-            has_clouds: false
+            brightness: 0.0,
+            temperature: 0.0,
+            humidity: 0.0,
+            has_water: false,
+            has_clouds: false,
         }
     }
 }

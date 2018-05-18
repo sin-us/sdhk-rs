@@ -12,6 +12,7 @@ use gfx::*;
 
 mod planet_gen;
 use planet_gen::*;
+use planet_gen::planet_mesh::PlanetOverlay;
 
 mod sun;
 use sun::*;
@@ -19,8 +20,8 @@ use sun::*;
 mod game_state;
 use game_state::GameState;
 
-const SCR_WIDTH: u32 = 800;
-const SCR_HEIGHT: u32 = 600;
+const SCR_WIDTH: u32 = 1024;
+const SCR_HEIGHT: u32 = 768;
 
 pub fn main() {
     let surface_shader;
@@ -49,7 +50,7 @@ pub fn main() {
     grid = Grid::create_size_n_grid(7);
     planet_mesh = create_planet(grid, &surface_shader, &atmosphere_shader);
     sun_mesh = create_sun(&sun_shader);
-
+   
     game.add_mesh(Box::new(planet_mesh));
     game.add_mesh(Box::new(sun_mesh));
 
@@ -58,13 +59,15 @@ pub fn main() {
 
 fn create_planet<'a>(grid: Grid, surface_shader: &'a ShaderProgram<PlanetVertex>, atmosphere_shader: &'a ShaderProgram<PlanetVertex>) -> PlanetMesh<'a> {
     let mut grid = grid;
-    Landscape::fill_heights(&mut grid);
 
-    let mut planet_mesh = PlanetMesh::create(grid, surface_shader, atmosphere_shader);
+    let light_direction = Vector3::new(2.0, 0.0, 0.0);
+    Landscape::fill_heights(&mut grid, 1000.0, 500.0);
+
+    let mut planet_mesh = PlanetMesh::create(grid, light_direction, surface_shader, atmosphere_shader);
     planet_mesh.compile();
     planet_mesh.set_pos(Vector3::zero());
-    planet_mesh.set_light(Vector3::new(2.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
-    planet_mesh.set_sea_level(800.0);
+    planet_mesh.set_light(light_direction, Vector3::new(1.0, 1.0, 1.0));
+    planet_mesh.set_sea_level(500.0);
 
     planet_mesh
 }
