@@ -1,6 +1,7 @@
 extern crate rand;
 extern crate cgmath;
 
+use planet_gen::tile::GLTile;
 use glfw::Key;
 use cgmath::Deg;
 use gfx::camera::Camera;
@@ -73,6 +74,7 @@ pub enum PlanetMaterial {
 
 pub struct PlanetMesh<'a> {
     grid: Grid,
+    gl_tiles: Vec<GLTile<PlanetVertex>>,
     mesh: Mesh<PlanetVertex>,
     surface_target: ShaderTarget<'a, PlanetVertex>,
     atmosphere_target: ShaderTarget<'a, PlanetVertex>,
@@ -113,7 +115,7 @@ impl<'a> PlanetMesh<'a> {
         ];
 
     pub fn recalc_vertices(&mut self) {
-        let vertices = Self::create_surface_vertices(&self.grid);
+        let (vertices, indices) = Self::create_surface_vertices(&self.grid);
         self.mesh.update_vertices(vertices);
     }
 
@@ -121,11 +123,16 @@ impl<'a> PlanetMesh<'a> {
                   sun_pos: Vector3<f32>,
                   surface_shader: &'a ShaderProgram<'a, PlanetVertex>,
                   atmosphere_shader: &'a ShaderProgram<'a, PlanetVertex>) -> Self {
-        let surface_vertices = Self::create_surface_vertices(&grid);
-        let surface_mesh = Mesh::create(surface_vertices, Vec::new());
+        let (vertices, indices)  = Self::create_surface_vertices(&grid);
+
+        println!("Tile count: {:?}", grid.tiles.len());
+        println!("Vertices count: {:?}", vertices.len());
+
+        let surface_mesh = Mesh::create(vertices, indices, Vec::new());
 
         PlanetMesh {
             grid: grid,
+            gl_tiles: Vec::new(),
             mesh: surface_mesh,
             surface_target: ShaderTarget::create(surface_shader),
             atmosphere_target: ShaderTarget::create(atmosphere_shader),
@@ -141,7 +148,7 @@ impl<'a> PlanetMesh<'a> {
         }
     }
 
-    pub fn create_surface_vertices(grid: &Grid) -> Vec<PlanetVertex> {
+    pub fn create_surface_vertices(grid: &Grid) -> (Vec<PlanetVertex>, Vec<u32>) {
         PlanetMesh::create_vertices(grid, PlanetMesh::RADIUS, |v,t| {
             v.brightness = t.brightness;
             v.temperature = t.temperature as f32;
@@ -150,92 +157,55 @@ impl<'a> PlanetMesh<'a> {
         })
     }
 
-    pub fn create_vertices<VAction>(grid: &Grid, radius: f32, vertex_action: VAction) -> Vec<PlanetVertex>
+    pub fn create_vertices<VAction>(grid: &Grid, radius: f32, vertex_action: VAction) -> (Vec<PlanetVertex>, Vec<u32>) // vertices + indices
                                                          where VAction: Fn(&mut PlanetVertex, &PlanetTile) {
-        let mut vertices: Vec<PlanetVertex> = Vec::new();
+        
+        let mut vertices: Vec<PlanetVertex> = Vec::with_capacity(grid.tiles.len() * 6);
+        let mut indices: Vec<u32> = Vec::with_capacity(grid.tiles.len() * 12);
+        let mut gl_tiles: Vec<GLTile<PlanetVertex>> = Vec::with_capacity(grid.tiles.len());
 
-        let vertices = {
-            // println!("tiles count: {}", grid.tiles.len());
+        let mut last_vertex_i: u32 = 0;
 
-            for i in 0..grid.tiles.len() {
+        for i in 0..grid.tiles.len() {
+            let t = &grid.tiles[i];
 
-                {
-                    let t = &grid.tiles[i];
+            let corner0 = (&t.grid_tile.corners[0] as &CornerPos).pos() * radius;
+            let corner1 = (&t.grid_tile.corners[1] as &CornerPos).pos() * radius;
+            let corner2 = (&t.grid_tile.corners[2] as &CornerPos).pos() * radius;
 
-                    for j in 0..t.grid_tile.edge_count as usize - 2 {
+            let normal = (corner2 - corner1).cross(corner0 - corner1);
+            let normal = normal.normalize();
 
-                        let corner0: &CornerPos = &t.grid_tile.corners[0];
-                        let corner1: &CornerPos = &t.grid_tile.corners[j + 1];
-                        let corner2: &CornerPos = &t.grid_tile.corners[j + 2];
+            let mut vertex0 = PlanetVertex::new(corner0, normal, PlanetMesh::get_color(t));
+            vertex_action(&mut vertex0, t);
+            vertices.push(vertex0);
 
-                        let a = Vector3::new(corner2.x() * radius, corner2.y() * radius, corner2.z() * radius);
-                        let b = Vector3::new(corner1.x() * radius, corner1.y() * radius, corner1.z() * radius);
-                        let c = Vector3::new(corner0.x() * radius, corner0.y() * radius, corner0.z() * radius);
+            let mut vertex1 = PlanetVertex::new(corner1, normal, PlanetMesh::get_color(t));
+            vertex_action(&mut vertex1, t);
+            vertices.push(vertex1);
 
-                        // let tex_coord_a: [f32;2];
-                        // let tex_coord_b: [f32;2];
-                        // let tex_coord_c: [f32;2];
+            let mut vertex2 = PlanetVertex::new(corner2, normal, PlanetMesh::get_color(t));
+            vertex_action(&mut vertex2, t);
+            vertices.push(vertex2);
 
-                        // if t.grid_tile.edge_count == 6 {
-                        //     tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
-                        //     tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[j + 1][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 1][1]];
-                        //     tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[j + 2][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[j + 2][1]];
-                        // }
-                        // else
-                        // {
-                        //     tex_coord_a = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
-                        //     tex_coord_b = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
-                        //     tex_coord_c = [PlanetMesh::TEX_COORDS_HEXAGON[0][0] + tile_x_offset, PlanetMesh::TEX_COORDS_HEXAGON[0][1]];
-                        // }
+            for j in 3..t.grid_tile.edge_count as usize {
+                let corner = (&t.grid_tile.corners[j] as &CornerPos).pos() * radius;
 
-                        let normal = (a - b).cross(c - b);
-                        let normal = normal.normalize();
-
-                        let mut vertex = PlanetVertex::new(c, normal, PlanetMesh::get_color(t));
-                        vertex_action(&mut vertex, t);
-                        vertices.push(vertex);
-
-                        let mut vertex = PlanetVertex::new(b, normal, PlanetMesh::get_color(t));
-
-                        vertex_action(&mut vertex, t);
-                        vertices.push(vertex);
-
-                        let mut vertex = PlanetVertex::new(a, normal, PlanetMesh::get_color(t));
-                        vertex_action(&mut vertex, t);
-                        vertices.push(vertex);
-                    }
-                }
+                let mut vertex = PlanetVertex::new(corner, normal, PlanetMesh::get_color(t));
+                vertex_action(&mut vertex, t);
+                vertices.push(vertex);
             }
 
-            vertices        
-        };
+            for j in 0..t.grid_tile.edge_count as u32 - 2 {
+                indices.push(0 + last_vertex_i);
+                indices.push(j + 1 + last_vertex_i);
+                indices.push(j + 2 + last_vertex_i);
+            }
 
-        vertices
-    }
-
-    pub fn create_vertices_for_tile(t: &PlanetTile) -> Vec<PlanetVertex> {
-        let mut vertices: Vec<PlanetVertex> = Vec::new();
-
-        let radius = 1.0001;
-
-        for j in 0..t.grid_tile.edge_count as usize - 2 {
-
-            let corner0: &CornerPos = &t.grid_tile.corners[0];
-            let corner1: &CornerPos = &t.grid_tile.corners[j + 1];
-            let corner2: &CornerPos = &t.grid_tile.corners[j + 2];
-
-            let a = Vector3::new(corner2.x() * radius, corner2.y() * radius, corner2.z() * radius);
-            let b = Vector3::new(corner1.x() * radius, corner1.y() * radius, corner1.z() * radius);
-            let c = Vector3::new(corner0.x() * radius, corner0.y() * radius, corner0.z() * radius);
-
-            let normal = (a - b).cross(c - b);
-
-            vertices.push(PlanetVertex::new(c, normal, PlanetMesh::get_color(t)));
-            vertices.push(PlanetVertex::new(b, normal, PlanetMesh::get_color(t)));
-            vertices.push(PlanetVertex::new(a, normal, PlanetMesh::get_color(t)));
+            last_vertex_i += t.grid_tile.edge_count as u32;
         }
 
-        vertices
+        (vertices, indices)
     }
 
     pub fn set_sea_level(&mut self, sea_level: f32) {

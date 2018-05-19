@@ -3,7 +3,7 @@ extern crate cgmath;
 
 use std::os::raw::c_void;
 use std::mem::{size_of};
-use cgmath::{ Vector2, Vector3 };
+use cgmath::{ Vector2, Vector3, Zero };
 
 #[derive(Debug)]
 pub enum VertexAttribute {
@@ -65,11 +65,23 @@ pub trait IntoVertexAttribute {
     fn into() -> VertexAttribute;
 }
 
+pub trait DefaultVertexAttribute {
+    fn default() -> Self;
+}
+
+
 impl IntoVertexAttribute for f32 {
     fn into() -> VertexAttribute {
         VertexAttribute::Float
     }
 }
+
+impl DefaultVertexAttribute for f32 {
+    fn default() -> f32 {
+        0.0
+    }
+}
+
 
 impl IntoVertexAttribute for Vector2<f32> {
     fn into() -> VertexAttribute {
@@ -77,14 +89,27 @@ impl IntoVertexAttribute for Vector2<f32> {
     }
 }
 
+impl DefaultVertexAttribute for Vector2<f32> {
+    fn default() -> Vector2<f32> {
+        Vector2::zero()
+    }
+}
+
+
 impl IntoVertexAttribute for Vector3<f32> {
     fn into() -> VertexAttribute {
         VertexAttribute::Vector3
     }
 }
 
+impl DefaultVertexAttribute for Vector3<f32> {
+    fn default() -> Vector3<f32> {
+        Vector3::zero()
+    }
+}
 
-pub trait Vertex: Sized + Copy + Clone {
+
+pub trait Vertex: Sized + Copy + Clone + Default {
     fn bind_attributes();
 
     fn get_attributes() -> Vec<VertexAttributeDescription>;
@@ -126,6 +151,16 @@ macro_rules! vertex_struct {
                             attribute_name: String::from($field_shader_name)
                         },
                     )*)
+            }
+        }
+
+        impl Default for $struct_name {
+            fn default() -> $struct_name {
+                $struct_name {
+                    $(
+                        $field_name: <$field_type as ::vertex::DefaultVertexAttribute>::default(),
+                    )*
+                }
             }
         }
     };

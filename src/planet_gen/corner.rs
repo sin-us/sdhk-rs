@@ -7,22 +7,12 @@ use planet_gen::tile::GridTile;
 use planet_gen::edge::Edge;
 
 pub trait CornerPos {
-    fn x(&self) -> f32;
-    fn y(&self) -> f32;
-    fn z(&self) -> f32;
+    fn pos(&self) -> Vector3<f32>;
 }
 
 impl CornerPos for *const Corner {
-    fn x(&self) -> f32 {
-        unsafe { (**self).pos.x }
-    }
-
-    fn y(&self) -> f32 {
-        unsafe { (**self).pos.y }
-    }
-
-    fn z(&self) -> f32 {
-        unsafe { (**self).pos.z }
+    fn pos(&self) -> Vector3<f32> {
+        unsafe { (**self).pos }
     }
 }
 

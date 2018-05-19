@@ -1,6 +1,5 @@
 out VS_OUT {
     vec4 pos;
-    vec3 color;
 } vs_out;
 
 uniform mat4 model;
@@ -140,5 +139,4 @@ void main()
     // turbulence_value = pow(turbulence_value, 1.5);
     gl_Position = projection * view * model * vec4(aPos + (aPos * turbulence_value / 12.0), 1.0);
     vs_out.pos = vec4(aPos, 1.0);
-    vs_out.color = aColor;
 }

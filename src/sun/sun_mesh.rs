@@ -15,14 +15,12 @@ use planet_gen::corner::CornerPos;
 
 vertex_struct!( SunVertex {
     pos: [Vector3<f32>, "aPos"],
-    color: [Vector3<f32>, "aColor"],
 } );
 
 impl SunVertex {
-    pub fn new(pos: Vector3<f32>, color: Vector3<f32>) -> SunVertex {
+    pub fn new(pos: Vector3<f32>) -> SunVertex {
         SunVertex {
             pos: pos,
-            color: color
         }
     }
 }
@@ -36,39 +34,46 @@ impl<'a> SunMesh<'a> {
     const RADIUS: f32 = 1.0;
 
     pub fn create(grid: &Grid, shader_program: &'a ShaderProgram<'a, SunVertex>) -> SunMesh<'a> {
-        let mut vertices: Vec<SunVertex> = Vec::new();
+        let mut vertices: Vec<SunVertex> = Vec::with_capacity(grid.tiles.len() * 6);
+        let mut indices: Vec<u32> = Vec::with_capacity(grid.tiles.len() * 12);
 
         let radius = SunMesh::RADIUS;
 
-        let vertices = {
-            for i in 0..grid.tiles.len() {
-                let t = &grid.tiles[i];
+        let mut last_vertex_i = 0;
 
-                for j in 0..t.grid_tile.edge_count as usize - 2 {
+        for i in 0..grid.tiles.len() {
+            let t = &grid.tiles[i];
 
-                    let corner0: &CornerPos = &t.grid_tile.corners[0];
-                    let corner1: &CornerPos = &t.grid_tile.corners[j + 1];
-                    let corner2: &CornerPos = &t.grid_tile.corners[j + 2];
+            let corner0 = (&t.grid_tile.corners[0] as &CornerPos).pos() * radius;
+            let corner1 = (&t.grid_tile.corners[1] as &CornerPos).pos() * radius;
+            let corner2 = (&t.grid_tile.corners[2] as &CornerPos).pos() * radius;
 
-                    let a = Vector3::new(corner2.x() * radius, corner2.y() * radius, corner2.z() * radius);
-                    let b = Vector3::new(corner1.x() * radius, corner1.y() * radius, corner1.z() * radius);
-                    let c = Vector3::new(corner0.x() * radius, corner0.y() * radius, corner0.z() * radius);
+            let mut vertex0 = SunVertex::new(corner0);
+            vertices.push(vertex0);
 
-                    let mut vertex = SunVertex::new(c, Vector3::new(1.0, 0.0, 0.0));
-                    vertices.push(vertex);
+            let mut vertex1 = SunVertex::new(corner1);
+            vertices.push(vertex1);
 
-                    let mut vertex = SunVertex::new(b, Vector3::new(1.0, 0.0, 0.0));
-                    vertices.push(vertex);
+            let mut vertex2 = SunVertex::new(corner2);
+            vertices.push(vertex2);
 
-                    let mut vertex = SunVertex::new(a, Vector3::new(1.0, 0.0, 0.0));
-                    vertices.push(vertex);
-                }
+            for j in 3..t.grid_tile.edge_count as usize {
+                let corner = (&t.grid_tile.corners[j] as &CornerPos).pos() * radius;
+
+                let mut vertex = SunVertex::new(corner);
+                vertices.push(vertex);
             }
 
-            vertices        
-        };
+            for j in 0..t.grid_tile.edge_count as u32 - 2 {
+                indices.push(0 + last_vertex_i);
+                indices.push(j + 1 + last_vertex_i);
+                indices.push(j + 2 + last_vertex_i);
+            }
 
-        let mesh = Mesh::create(vertices, Vec::new());
+            last_vertex_i += t.grid_tile.edge_count as u32;
+        }
+
+        let mesh = Mesh::create(vertices, indices, Vec::new());
 
         SunMesh {
             mesh: mesh,

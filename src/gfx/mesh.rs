@@ -13,6 +13,7 @@ use shader_program::ShaderProgram;
 
 pub struct Mesh<V: Vertex> {
     vertices: Vec<V>,
+    indices: Vec<u32>,
     textures: Vec<Texture>,
     vbo: u32,
     vao: u32,
@@ -21,9 +22,10 @@ pub struct Mesh<V: Vertex> {
 
 impl<V> Mesh<V>
             where V: Vertex {
-    pub fn create(vertices: Vec<V>, textures: Vec<Texture>) -> Mesh<V> {
+    pub fn create(vertices: Vec<V>, indices: Vec<u32>, textures: Vec<Texture>) -> Mesh<V> {
         Mesh {
             vertices: vertices,
+            indices: indices,
             textures: textures,
             vbo: 0,
             vao: 0,
@@ -44,10 +46,11 @@ impl<V> Mesh<V>
             self.vbo = vbo;
             self.vao = vao;
             self.ebo = ebo;
-
             
             gl::BindVertexArray(self.vao);
+
             self.bind_vbo();
+            self.bind_ebo();
 
             V::bind_attributes();
 
@@ -58,6 +61,7 @@ impl<V> Mesh<V>
     pub fn update_vertices(&mut self, vertices: Vec<V>) {
         self.vertices = vertices;
         self.bind_vbo();
+        self.bind_ebo();
     }
 
     pub fn render(&self, shader_program: &ShaderProgram<V>) {
@@ -72,7 +76,8 @@ impl<V> Mesh<V>
             }
            
             gl::BindVertexArray(self.vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, self.vertices.len() as i32);
+            gl::DrawElements(gl::TRIANGLES, self.indices.len() as i32, gl::UNSIGNED_INT, 0 as *const c_void);
+            //gl::DrawArrays(gl::TRIANGLES, 0, self.vertices.len() as i32);
             gl::BindVertexArray(0);
         }
     }
@@ -83,5 +88,12 @@ impl<V> Mesh<V>
             gl::BufferData(gl::ARRAY_BUFFER, (self.vertices.len() * size_of::<V>()) as isize, &self.vertices[0] as *const V as *const c_void, gl::STATIC_DRAW);
         }
         // V::bind_attributes();
+    }
+
+    fn bind_ebo(&self) {
+        unsafe {
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (self.indices.len() * size_of::<u32>()) as isize, &self.indices[0] as *const u32 as *const c_void, gl::STATIC_DRAW);
+        }
     }
 }

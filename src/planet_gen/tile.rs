@@ -1,5 +1,6 @@
 extern crate cgmath;
 
+use gfx::vertex::Vertex;
 use std::ptr;
 use self::cgmath::Vector3;
 
@@ -40,8 +41,7 @@ impl PlanetCoreMaterial {
 
 pub struct PlanetTile {
     pub grid_tile: GridTile,
-    pub gl_tile: GLTile,
-    
+
     pub core_material: &'static PlanetCoreMaterial,
     pub height: f64,
     pub brightness: f32,
@@ -60,15 +60,24 @@ pub struct GridTile {
     pub edges: [*const Edge; 6]
 }
 
-pub struct GLTile {
-    pub vertice_indices: [usize; 6]
+pub struct GLTile<V: Vertex> {
+    pub vertices: [V; 6],
+    pub indices: [usize; 12]
+}
+
+impl<V> GLTile<V> where V: Vertex {
+    pub fn new() -> Self {
+        GLTile {
+            vertices: [V::default(); 6],
+            indices: [0; 12],
+        }
+    }
 }
 
 impl PlanetTile {
     pub fn new(grid_tile: GridTile) -> PlanetTile {
         PlanetTile {
             grid_tile: grid_tile,
-            gl_tile: GLTile { vertice_indices: [0; 6] },
             core_material: &PlanetCoreMaterial::GRANITE,
             height: 0.0,
             brightness: 0.0,

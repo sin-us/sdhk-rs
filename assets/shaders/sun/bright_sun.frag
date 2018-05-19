@@ -1,6 +1,5 @@
 in VS_OUT {
     vec4 pos;
-    vec3 color;
 } fs_in;
 
 uniform mat4 model;
