@@ -1,0 +1,11 @@
+language: rust
+rust:
+  - nightly
+addons:
+  apt:
+    sources:
+      - kubuntu-backports
+    packages:
+      - libxinerama-dev
+      - libxcursor-dev
+      - xorg-dev
