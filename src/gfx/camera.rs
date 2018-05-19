@@ -2,7 +2,7 @@ extern crate cgmath;
 use cgmath::prelude::*;
 use cgmath::{ Vector3, Point3, Matrix4, Deg, Quaternion };
 
-
+#[allow(dead_code)]
 pub enum CameraDirection {
 	Up,
     Down,
@@ -12,6 +12,7 @@ pub enum CameraDirection {
     Back
 }
 
+#[allow(dead_code)]
 #[derive(PartialEq)]
 pub enum CameraType {
     Free,
@@ -267,21 +268,6 @@ impl Camera {
         }
         self.mouse_position = Vector3::new(x as f32, y as f32, 0.0);
     }
-
-    
-
-    // pub fn set_pos(&mut self, button, int state, int x, int y) {
-    //     if (button == 3 && state == GLUT_DOWN) {
-    //         camera_position_delta += camera_up * .05f;
-    //     } else if (button == 4 && state == GLUT_DOWN) {
-    //         camera_position_delta -= camera_up * .05f;
-    //     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-    //         move_camera = true;
-    //     } else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-    //         move_camera = false;
-    //     }
-    //     mouse_position = glm::vec3(x, y, 0);
-    // }
 
     pub fn get_pvm(&self) -> (Matrix4<f32>, Matrix4<f32>, Matrix4<f32>) {
         (self.projection, self.view, self.model)

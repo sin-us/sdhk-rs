@@ -1,7 +1,6 @@
 extern crate glfw;
 extern crate cgmath;
 
-use gfx::vertex::Vertex;
 use gfx::render_target::RenderTarget;
 use gfx::camera::{Camera, CameraDirection};
 use gfx::game_window::Game;
@@ -80,7 +79,7 @@ impl<'a> Game for GameState<'a> {
                     _ => {}
                 }
             },
-            WindowEvent::Scroll(x,y) => self.camera.move_camera(if y > 0.0 { CameraDirection::Forward } else { CameraDirection::Back }),
+            WindowEvent::Scroll(_x,y) => self.camera.move_camera(if y > 0.0 { CameraDirection::Forward } else { CameraDirection::Back }),
             WindowEvent::CursorPos(x, y) => {
                 println!("{} {}", x, y);
             },

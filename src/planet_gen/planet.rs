@@ -1,21 +1,22 @@
 extern crate rand;
 extern crate cgmath;
 
-use planet_gen::tile::GLTile;
 use glfw::Key;
-use cgmath::Deg;
+
+use self::cgmath::{Deg, Vector2, Vector3, InnerSpace, Zero};
+
 use gfx::camera::Camera;
 use gfx::render_target::RenderTarget;
 use gfx::shader_program::ShaderProgram;
-use gfx::shader_target::Axis;
-use gfx::shader_target::ShaderTarget;
+use gfx::shader_target::{ Axis, ShaderTarget };
 use gfx::mesh::Mesh;
-use planet_gen::tile::PlanetTile;
-use self::cgmath::{Vector2, Vector3, InnerSpace, Zero, Transform};
 
-use planet_gen::grid::Grid;
+use sphere_grid::corner::Corner;
+use sphere_grid::grid::Grid;
+use sphere_grid::grid_mesh::GridMesh;
+use sphere_grid::tile::PlanetTile;
+
 use planet_gen::landscape::Landscape;
-use planet_gen::corner::CornerPos;
 
 use vertex::Vertex;
 
@@ -35,11 +36,11 @@ vertex_struct!(
 );
 
 impl PlanetVertex {
-    pub fn new(pos: Vector3<f32>, normal: Vector3<f32>, color: Vector3<f32>) -> PlanetVertex {
+    pub fn new(pos: Vector3<f32>, normal: Vector3<f32>) -> PlanetVertex {
         PlanetVertex {
             pos: pos,
             normal: normal,
-            color: color,
+            color: Vector3::zero(),
             tex: Vector2::zero(),
 
             brightness: 0.0,
@@ -72,9 +73,8 @@ pub enum PlanetMaterial {
 
 
 
-pub struct PlanetMesh<'a> {
+pub struct Planet<'a> {
     grid: Grid,
-    gl_tiles: Vec<GLTile<PlanetVertex>>,
     mesh: Mesh<PlanetVertex>,
     surface_target: ShaderTarget<'a, PlanetVertex>,
     atmosphere_target: ShaderTarget<'a, PlanetVertex>,
@@ -90,49 +90,40 @@ pub struct PlanetMesh<'a> {
 }
 
 #[allow(dead_code)]
-impl<'a> PlanetMesh<'a> {
+impl<'a> Planet<'a> {
+    /* Tileset and textures are not currently used. Maybe in future */
     const TILESET_WIDTH: f32 = 1000.0;
     const TILESET_HEIGHT: f32 = 100.0;
 
     const TILESET_TILES_PER_ROW: f32 = 10.0;
     const TILESET_TILES_PER_COLUMN: f32 = 1.0;
 
-    const TILESET_TILE_WIDTH: f32 = PlanetMesh::TILESET_WIDTH / PlanetMesh::TILESET_TILES_PER_ROW;
-    const TILESET_TILE_HEIGHT: f32 = PlanetMesh::TILESET_HEIGHT / PlanetMesh::TILESET_TILES_PER_COLUMN;
+    const TILESET_TILE_WIDTH: f32 = Planet::TILESET_WIDTH / Planet::TILESET_TILES_PER_ROW;
+    const TILESET_TILE_HEIGHT: f32 = Planet::TILESET_HEIGHT / Planet::TILESET_TILES_PER_COLUMN;
 
-    const TILE_WIDTH_NORMALIZED: f32 = PlanetMesh::TILESET_TILE_WIDTH / PlanetMesh::TILESET_WIDTH;
-    const TILE_HEIGHT_NORMALIZED: f32 = PlanetMesh::TILESET_TILE_HEIGHT / PlanetMesh::TILESET_HEIGHT;
+    const TILE_WIDTH_NORMALIZED: f32 = Planet::TILESET_TILE_WIDTH / Planet::TILESET_WIDTH;
+    const TILE_HEIGHT_NORMALIZED: f32 = Planet::TILESET_TILE_HEIGHT / Planet::TILESET_HEIGHT;
 
     const RADIUS: f32 = 1.0;
 
     const TEX_COORDS_HEXAGON: [[f32;2];6] = [
-            [0.25 * PlanetMesh::TILE_WIDTH_NORMALIZED, 1.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
-            [0.75 * PlanetMesh::TILE_WIDTH_NORMALIZED, 1.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
-            [1.0  * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.5 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
-            [0.75 * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
-            [0.25 * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.0 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
-            [0.0  * PlanetMesh::TILE_WIDTH_NORMALIZED, 0.5 * PlanetMesh::TILE_HEIGHT_NORMALIZED],
+            [0.25 * Planet::TILE_WIDTH_NORMALIZED, 1.0 * Planet::TILE_HEIGHT_NORMALIZED],
+            [0.75 * Planet::TILE_WIDTH_NORMALIZED, 1.0 * Planet::TILE_HEIGHT_NORMALIZED],
+            [1.0  * Planet::TILE_WIDTH_NORMALIZED, 0.5 * Planet::TILE_HEIGHT_NORMALIZED],
+            [0.75 * Planet::TILE_WIDTH_NORMALIZED, 0.0 * Planet::TILE_HEIGHT_NORMALIZED],
+            [0.25 * Planet::TILE_WIDTH_NORMALIZED, 0.0 * Planet::TILE_HEIGHT_NORMALIZED],
+            [0.0  * Planet::TILE_WIDTH_NORMALIZED, 0.5 * Planet::TILE_HEIGHT_NORMALIZED],
         ];
-
-    pub fn recalc_vertices(&mut self) {
-        let (vertices, indices) = Self::create_surface_vertices(&self.grid);
-        self.mesh.update_vertices(vertices);
-    }
 
     pub fn create(grid: Grid,
                   sun_pos: Vector3<f32>,
                   surface_shader: &'a ShaderProgram<'a, PlanetVertex>,
                   atmosphere_shader: &'a ShaderProgram<'a, PlanetVertex>) -> Self {
-        let (vertices, indices)  = Self::create_surface_vertices(&grid);
 
-        println!("Tile count: {:?}", grid.tiles.len());
-        println!("Vertices count: {:?}", vertices.len());
+        let surface_mesh  = Self::create_mesh(&grid);
 
-        let surface_mesh = Mesh::create(vertices, indices, Vec::new());
-
-        PlanetMesh {
+        Planet {
             grid: grid,
-            gl_tiles: Vec::new(),
             mesh: surface_mesh,
             surface_target: ShaderTarget::create(surface_shader),
             atmosphere_target: ShaderTarget::create(atmosphere_shader),
@@ -148,65 +139,38 @@ impl<'a> PlanetMesh<'a> {
         }
     }
 
-    pub fn create_surface_vertices(grid: &Grid) -> (Vec<PlanetVertex>, Vec<u32>) {
-        PlanetMesh::create_vertices(grid, PlanetMesh::RADIUS, |v,t| {
-            v.brightness = t.brightness;
-            v.temperature = t.temperature as f32;
-            v.height = t.height as f32;
-            v.clouds = if t.has_clouds { 1.0 } else { 0.0 };
+    pub fn create_mesh(grid: &Grid) -> Mesh<PlanetVertex> {
+        GridMesh::create(grid, Planet::RADIUS, |pos, normal, tile: &PlanetTile| -> PlanetVertex {
+            let mut vertex = PlanetVertex::new(pos, normal);            
+            Self::fill_vertex(&mut vertex, tile);
+            vertex
         })
     }
 
-    pub fn create_vertices<VAction>(grid: &Grid, radius: f32, vertex_action: VAction) -> (Vec<PlanetVertex>, Vec<u32>) // vertices + indices
-                                                         where VAction: Fn(&mut PlanetVertex, &PlanetTile) {
-        
-        let mut vertices: Vec<PlanetVertex> = Vec::with_capacity(grid.tiles.len() * 6);
-        let mut indices: Vec<u32> = Vec::with_capacity(grid.tiles.len() * 12);
-        let mut gl_tiles: Vec<GLTile<PlanetVertex>> = Vec::with_capacity(grid.tiles.len());
+    fn fill_vertex(vertex: &mut PlanetVertex, tile: &PlanetTile) {
+        vertex.brightness = tile.brightness;
+        vertex.temperature = tile.temperature as f32;
+        vertex.height = tile.height as f32;
+        vertex.clouds = if tile.has_clouds { 1.0 } else { 0.0 };
+    }
 
-        let mut last_vertex_i: u32 = 0;
+    fn update_vertices(&mut self) {
+        {
+            let vertices = self.mesh.get_mut_vertices();
 
-        for i in 0..grid.tiles.len() {
-            let t = &grid.tiles[i];
+            for i in 0..self.grid.tiles.len() {
+                let tile = &self.grid.tiles[i];
 
-            let corner0 = (&t.grid_tile.corners[0] as &CornerPos).pos() * radius;
-            let corner1 = (&t.grid_tile.corners[1] as &CornerPos).pos() * radius;
-            let corner2 = (&t.grid_tile.corners[2] as &CornerPos).pos() * radius;
-
-            let normal = (corner2 - corner1).cross(corner0 - corner1);
-            let normal = normal.normalize();
-
-            let mut vertex0 = PlanetVertex::new(corner0, normal, PlanetMesh::get_color(t));
-            vertex_action(&mut vertex0, t);
-            vertices.push(vertex0);
-
-            let mut vertex1 = PlanetVertex::new(corner1, normal, PlanetMesh::get_color(t));
-            vertex_action(&mut vertex1, t);
-            vertices.push(vertex1);
-
-            let mut vertex2 = PlanetVertex::new(corner2, normal, PlanetMesh::get_color(t));
-            vertex_action(&mut vertex2, t);
-            vertices.push(vertex2);
-
-            for j in 3..t.grid_tile.edge_count as usize {
-                let corner = (&t.grid_tile.corners[j] as &CornerPos).pos() * radius;
-
-                let mut vertex = PlanetVertex::new(corner, normal, PlanetMesh::get_color(t));
-                vertex_action(&mut vertex, t);
-                vertices.push(vertex);
+                for j in 0..tile.grid_tile.edge_count as usize {
+                    let corner_id = Corner::get_id(tile.grid_tile.corners[j]);
+                    Self::fill_vertex(&mut vertices[corner_id], tile);
+                }
             }
-
-            for j in 0..t.grid_tile.edge_count as u32 - 2 {
-                indices.push(0 + last_vertex_i);
-                indices.push(j + 1 + last_vertex_i);
-                indices.push(j + 2 + last_vertex_i);
-            }
-
-            last_vertex_i += t.grid_tile.edge_count as u32;
         }
 
-        (vertices, indices)
+        self.mesh.refill_vertices();
     }
+    
 
     pub fn set_sea_level(&mut self, sea_level: f32) {
         self.sea_level = sea_level;
@@ -230,7 +194,7 @@ impl<'a> PlanetMesh<'a> {
     }
 }
 
-impl<'a> RenderTarget for PlanetMesh<'a> {
+impl<'a> RenderTarget for Planet<'a> {
     fn update(&mut self, camera: &Camera, time: f32) {
 
         let degrees_per_tick = 1.0;
@@ -246,10 +210,8 @@ impl<'a> RenderTarget for PlanetMesh<'a> {
 
         Landscape::heat(&mut self.grid, self.surface_target.get_model_matrix(), self.sun_pos, seconds_per_tick as f64);
 
-        //Landscape::vapor(&mut self.grid, self.surface_target.get_model_matrix(), self.sun_pos);
-
         //if time - self.last_frame > 0.5 {
-            self.recalc_vertices();
+            self.update_vertices();
             self.last_frame = time;
         //}
     }

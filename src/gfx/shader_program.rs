@@ -2,7 +2,6 @@ extern crate gl;
 
 use gfx::shader_constructor::{ShaderType, ShaderSource};
 use gfx::vertex::Vertex;
-use std::marker::PhantomData;
 use gl::types::GLenum;
 use gl::types::GLchar;
 use std::ffi::{CString, CStr};

@@ -5,6 +5,7 @@ use std::io::Read;
 
 
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum ShaderType {
     Vertex,

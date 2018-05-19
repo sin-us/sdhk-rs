@@ -5,7 +5,6 @@ use gfx::vertex::Vertex;
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::mem::{size_of};
-use cgmath::{ Vector2, Vector3 };
 
 use texture::Texture;
 use shader_program::ShaderProgram;
@@ -17,7 +16,8 @@ pub struct Mesh<V: Vertex> {
     textures: Vec<Texture>,
     vbo: u32,
     vao: u32,
-    ebo: u32
+    ebo: u32,
+    is_dirty: bool,
 }
 
 impl<V> Mesh<V>
@@ -29,7 +29,8 @@ impl<V> Mesh<V>
             textures: textures,
             vbo: 0,
             vao: 0,
-            ebo: 0
+            ebo: 0,
+            is_dirty: true,
         }
     }
 
@@ -58,10 +59,13 @@ impl<V> Mesh<V>
         };
     }
 
-    pub fn update_vertices(&mut self, vertices: Vec<V>) {
-        self.vertices = vertices;
+    pub fn get_mut_vertices(&mut self) -> &mut Vec<V> {
+        self.is_dirty = true;
+        &mut self.vertices
+    }
+
+    pub fn refill_vertices(&self) {
         self.bind_vbo();
-        self.bind_ebo();
     }
 
     pub fn render(&self, shader_program: &ShaderProgram<V>) {

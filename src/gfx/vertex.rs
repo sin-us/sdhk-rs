@@ -134,7 +134,7 @@ macro_rules! vertex_struct {
         }
 
         impl Vertex for $struct_name {
-            #[allow(dead_code)]
+            #[allow(unused_assignments)]
             fn bind_attributes() {
                 let mut index = 0;
                 let mut offset = 0;

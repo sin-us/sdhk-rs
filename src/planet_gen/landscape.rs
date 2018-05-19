@@ -1,11 +1,12 @@
 extern crate cgmath;
 extern crate noise;
 
-use cgmath::{ Vector3, Matrix4, InnerSpace, Transform };
 use std::f64;
-use planet_gen::grid::Grid;
-use planet_gen::tile::PlanetCoreMaterial;
+use cgmath::{ Vector3, Matrix4, InnerSpace, Transform };
 use self::noise::{Fbm, NoiseFn, Point3, Seedable, MultiFractal};
+
+use sphere_grid::grid::Grid;
+use sphere_grid::tile::PlanetCoreMaterial;
 
 pub struct Landscape;
 
@@ -72,19 +73,5 @@ impl Landscape {
         }
 
         println!("Max temp: {:?}    Min Temp: {:?}", max_temp, min_temp);
-    }
-
-    pub fn vapor(grid: &mut Grid, model_matrix: Matrix4<f32>, sun_pos: Vector3<f32>) {
-        for t in &mut grid.tiles {
-
-            if !t.has_water { 
-                continue
-            }
-
-            t.brightness = model_matrix.transform_vector(t.grid_tile.pos).dot(sun_pos);
-            
-            t.height = t.height + 0.1;
-            t.has_clouds = t.height < 900.0;
-        }
     }
 }

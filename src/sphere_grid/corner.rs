@@ -3,18 +3,8 @@ extern crate cgmath;
 use self::cgmath::Vector3;
 
 use std::ptr;
-use planet_gen::tile::GridTile;
-use planet_gen::edge::Edge;
-
-pub trait CornerPos {
-    fn pos(&self) -> Vector3<f32>;
-}
-
-impl CornerPos for *const Corner {
-    fn pos(&self) -> Vector3<f32> {
-        unsafe { (**self).pos }
-    }
-}
+use tile::GridTile;
+use edge::Edge;
 
 pub struct Corner {
     pub id: usize,
@@ -33,6 +23,14 @@ impl Corner {
             corners: [ptr::null(); 3],
             edges: [ptr::null(); 3]
         }
+    }
+
+    pub fn get_id(corner: *const Corner) -> usize {
+        unsafe { (*corner).id }
+    }
+
+    pub fn get_pos(corner: *const Corner) -> Vector3<f32> {
+        unsafe { (*corner).pos }
     }
 
     pub fn get_corner_pos(&self, n: *const Corner) -> Option<usize> {

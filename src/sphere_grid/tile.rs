@@ -1,11 +1,10 @@
 extern crate cgmath;
 
-use gfx::vertex::Vertex;
 use std::ptr;
 use self::cgmath::Vector3;
 
-use planet_gen::corner::Corner;
-use planet_gen::edge::Edge;
+use corner::Corner;
+use edge::Edge;
 
 pub struct PlanetCoreMaterial {
     specific_heat: f64, // J / kg
@@ -60,19 +59,6 @@ pub struct GridTile {
     pub edges: [*const Edge; 6]
 }
 
-pub struct GLTile<V: Vertex> {
-    pub vertices: [V; 6],
-    pub indices: [usize; 12]
-}
-
-impl<V> GLTile<V> where V: Vertex {
-    pub fn new() -> Self {
-        GLTile {
-            vertices: [V::default(); 6],
-            indices: [0; 12],
-        }
-    }
-}
 
 impl PlanetTile {
     pub fn new(grid_tile: GridTile) -> PlanetTile {

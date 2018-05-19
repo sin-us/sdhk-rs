@@ -4,9 +4,9 @@ use std::ptr;
 
 use self::cgmath::{Vector3, InnerSpace};
 
-use planet_gen::tile::{GridTile, PlanetTile};
-use planet_gen::corner::Corner;
-use planet_gen::edge::Edge;
+use tile::{GridTile, PlanetTile};
+use corner::Corner;
+use edge::Edge;
 
 pub struct Grid {
     size: u8,

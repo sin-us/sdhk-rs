@@ -1,6 +1,6 @@
 use std::ptr;
-use planet_gen::tile::GridTile;
-use planet_gen::corner::Corner;
+use tile::GridTile;
+use corner::Corner;
 
 pub struct Edge {
     pub id: usize,
