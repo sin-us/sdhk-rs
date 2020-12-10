@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["Yurii Musiichuk <yurii.musiichuk@gmail.com>"]
 
 [dependencies]
-cgmath = "*"
-gl = "*"
-glfw = "*"
-image = "*"
-rand = "*"
-noise = "*"
+cgmath = "0.17.0"
+gl = "0.14.0"
+glfw = "0.41.0"
+image = "0.18.*"
+rand = "0.7.3"
+noise = "0.6.0"
